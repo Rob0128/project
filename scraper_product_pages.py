@@ -2,6 +2,7 @@ from os import name
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
 import mysql.connector
+import re
 
 
 class item:
@@ -85,6 +86,40 @@ class page_scraper:
         #access engery on page and then add the value to the line below
         #current_item.energy =  
 
+
+        # check if collumn for per serve values
+        whole_table = (soup.find('div', class_='nutrition___30wTj'))
+        column_headers = (whole_table.find_all('thead'))
+        count_check = str(column_headers).count("<td>")
+        print(column_headers)
+            
+        all_th = soup.find_all('tr')
+
+        for y in all_th:
+            if y.get_text() == "":
+                print("yes")
+        
+        
+        #print(all_th[5].get_text())
+
+        if count_check == 2:
+            #find individual values
+            table_values = str(whole_table.find_all('tbody'))
+            reduced_values = table_values.split("<tr>")
+
+            for x in range(1, len(reduced_values) - 1):
+                
+                ex = (reduced_values[x].split(">"))
+                
+                table_values_clean = []
+                title = ex[1].split("<")
+                table_values_clean.append(title[0])
+                first_val = (ex[3].split("<"))
+                table_values_clean.append(first_val[0].replace("g", ""))
+                second_val = ex[5].split("<")
+                table_values_clean.append(second_val[0].replace("g", "").replace(" ", ""))
+                print(table_values_clean)
+
         return "object (current_item) with product info"
 
 
@@ -99,4 +134,4 @@ class page_scraper:
 if __name__ == "__main__":
 
     links = page_scraper.query_builder()
-    page_scraper.process_page('https://www.waitrose.com/ecom/products/activia-fat-free-cherry-yogurts/783167-690830-690831')
+    page_scraper.process_page('https://www.waitrose.com/ecom/products/essential-greek-style-natural-yogurt/565210-80062-80063')
