@@ -7,7 +7,7 @@ import re
 
 class item:
 
-    def __init__(self, title="", category_broad="", category_specific="", item_link="", serving_description="", energy_kj=0, energy_cal=0, fat_tot=0, fat_sat=0, fat_poly=0, carb=0, sugar=0, fibre=0, protein=0, salt=0, omega3=0, sodium=0, mvv="meat"):
+    def __init__(self, title="", category_broad="", category_specific="", item_link="", serving_description="", energy_kj=0, energy_cal=0, fat_tot=0, fat_sat=0, carb=0, sugar=0, fibre=0, protein=0, salt=0, mvv="meat"):
         
         self.title = title
         self.category_broad = category_broad
@@ -18,14 +18,11 @@ class item:
         self.energy_cal = energy_cal
         self.fat_total = fat_tot
         self.fat_saturated = fat_sat
-        self.fat_poly = fat_poly
         self.carb = carb
         self.sugar = sugar
         self.fibre = fibre
         self.protein = protein
         self.salt = salt
-        self.omega3 = omega3
-        self.sodium = sodium
         self.meat_or_veg = mvv
         
 
@@ -60,7 +57,7 @@ class page_scraper:
         
         #scrape each page here
 
-        current_item = item
+        
 
         s = HTMLSession()
         url = link
@@ -70,20 +67,18 @@ class page_scraper:
 
         #populate the item object with data from the page
 
-        if soup.find('div', class_='nutrition___30wTj'):
-            
-            current_item.title = (soup.find('h1', class_='title___31Yu2').get_text())
-            
-            #returns all text from the breadcrumb bar
-            category_uncleaned = (soup.find('ul', class_='crumbs___3NtHD').get_text(","))
-            #split the texts with a comma and split them into a list to make them accessable individually
-            category_list = category_uncleaned.split(",")
-            current_item.category_broad  = category_list[2]
-            current_item.category_specific = category_list[3]
 
-            print(current_item.category_broad, current_item.category_specific)
-            #access engery on page and then add the value to the line below
-            #current_item.energy =  
+        current_item = item
+
+        #variable to check if checks passed and object should be returned
+        ret_object = False
+
+
+        if soup.find('div', class_='nutrition___30wTj'):
+
+            
+            
+            
 
 
             # check if collumn for per serve values
@@ -92,11 +87,34 @@ class page_scraper:
             count_check = str(column_headers).count("<td>")
             print(column_headers)
 
+
+            
+
             if count_check == 2:
 
-            #record description of a serving size
-                split_headers = column_headers[0].find_all('td')[1].text
+                ret_object= True
 
+                current_item.title = (soup.find('h1', class_='title___31Yu2').get_text())
+
+                current_item.item_link = link
+
+                #returns all text from the breadcrumb bar
+                category_uncleaned = (soup.find('ul', class_='crumbs___3NtHD').get_text(","))
+                #split the texts with a comma and split them into a list to make them accessable individually
+                category_list = category_uncleaned.split(",")
+                print(category_list)
+                current_item.category_broad  = category_list[2]
+                current_item.category_specific = category_list[3]
+
+                print("hi")
+                print(current_item.category_broad, current_item.category_specific)
+           
+                #record description of a serving size
+                #desc_headings = column_headers.find_all('td')
+                
+                
+                current_item.serving_description = column_headers[0].find_all('td')[1].text
+                current_item.meat_or_veg = "none"
                 
             # all_th = soup.find_all('tr')
             
@@ -106,6 +124,7 @@ class page_scraper:
                 #find individual values
                 table_values = str(whole_table.find_all('tbody'))
                 reduced_values = table_values.split("<tr>")
+
 
             
 
@@ -128,7 +147,7 @@ class page_scraper:
                     if title == "Energy" and energy_second == False:
                         print("got it", int(re.sub("[^0-9]", "", second_val)))
                         current_item.energy_kj = int(re.sub("[^0-9]", "", second_val))
-                        energy_count = True
+                        energy_second = True
 
                     if title == "Energy" and energy_second == True:
                         print("got it", int(re.sub("[^0-9]", "", second_val)))
@@ -160,33 +179,51 @@ class page_scraper:
 
                     if title == "Salt":
                         print("got it", second_val)
+                        current_item.salt = float(second_val)
 
-
-        return current_item
+            
+        if ret_object == True:    
+            return current_item
+        else:
+            return 0
+        
+        
 
     def scrape_pages(self, prod_links):
 
+        mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        passwd="Supergreen28!",
+        database="proj_schema")
+
+        mycursor = mydb.cursor()
+
         for link in prod_links:
-            print(link[0])
-            prod_item = self.process_page(link[0])
-            self.upload_to_db(prod_item)
+            
+            cur_item = self.process_page(link[0])
+
+            if type(cur_item) != int:
+                self.upload_to_db(cur_item, mydb, mycursor)
 
 
-    def upload_to_db(item_object):
+    def upload_to_db(cur_object, db, cursor):
 
+        print("SSSSTTTAARRTTIINNGG")
+        # for attr, value in cur_object.__dict__.items():
+        #     if not attr.startswith('__'):
+        #         print(attr)
+
+        print(cur_object.category_broad)
+        sql = "INSERT INTO product_info (title, category_broad, category_specific, item_link, serving_description, energy_kj, energy_cal, fat_total, fat_saturated, carb, sugar, fibre, protein, salt, meat_or_veg) VALUES (" + "\"" + str(cur_object.title) + "\"" + ", " + "\"" + str(cur_object.category_broad) + "\"" + ", " + "\"" + str(cur_object.category_specific) + "\"" + ", " + "\"" + str(cur_object.item_link) + "\"" + ", " + "\"" + str(cur_object.serving_description) + "\"" + ", " + "\"" + str(cur_object.energy_kj)  + "\"" + ", " + "\"" + str(cur_object.energy_cal) + "\"" + ", " + "\"" + str(cur_object.fat_total) + "\"" + ", " + "\"" + str(cur_object.fat_saturated) + "\"" + ", " + "\"" + str(cur_object.carb)  + "\"" + ", " + "\"" + str(cur_object.sugar)  + "\"" + ", " + "\"" + str(cur_object.fibre) + "\"" + ", " + "\"" + str(cur_object.protein)  + "\"" + ", " + "\"" + str(cur_object.salt) + "\"" + ", " + "\"" + str(cur_object.meat_or_veg) + "\"" + ")"
         
-        return "done" 
-
-    def query_update(up_item, up_val):
-        return "hi" 
-
-    # def load_to_db(self, arr):
+        print(sql)
         
-    #     print("ltd")
-    #     for link in arr:
-    #         self.process_page(link)
+        cursor.execute(sql,)
 
-    #         #self.query_builder(self, link)
+        db.commit()
+
+        print("it worked") 
 
 
 
