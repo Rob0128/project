@@ -35,10 +35,10 @@ class page_scraper:
     def get_links_from_db():
 
         mydb = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="Supergreen28!",
-        database="proj_schema"
+        host="DESKTOP-NOE172B", #DESKTOP-NOE172B
+        user="M3H\rob.hill", #M3H\rob.hill
+        passwd="",
+        database="Projects"
         )
 
         mycursor = mydb.cursor()
@@ -235,3 +235,6 @@ if __name__ == "__main__":
 
 
     #page_scraper.process_page('https://www.waitrose.com/ecom/products/essential-greek-style-natural-yogurt/565210-80062-80063')
+
+
+
