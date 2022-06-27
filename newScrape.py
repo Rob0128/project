@@ -7,8 +7,8 @@ import json
 url = "https://www.waitrose.com/api/content-prod/v2/cms/publish/productcontent/browse/-1?clientType=WEB_APP"
 
 startNo = 1
-sizeNo = 128
-preList = {}
+sizeNo = 1
+preList = []
 listOfProds = []
 
 while startNo < 5:
@@ -53,13 +53,14 @@ while startNo < 5:
 
   data = json.loads(response.text)
 
-  preList.update({str(startNo): data["componentsAndProducts"]})
+  preList.append(data)
 
 # print(data["componentsAndProducts"])
 #print(preList)
 
 
-for prod in preList:
+for dictionary in preList:
+  for prod in dictionary["componentsAndProducts"]:
     name = prod["searchProduct"]['name'].replace(" ", "-")
     url = "https://www.waitrose.com/ecom/products/" + name + "/" + prod["searchProduct"]['id']
     listOfProds.append(url)
