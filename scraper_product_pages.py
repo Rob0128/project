@@ -1,8 +1,14 @@
 from os import name
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
-import mysql.connector
+#import mysql.connector
 import re
+import newScrape
+import pymongo
+from pymongo.server_api import ServerApi
+import pandas as pd
+import csv
+import json
 
 
 class item:
@@ -32,25 +38,26 @@ class page_scraper:
         super().__init__()
 
     #connect to db and load list of product web addresses
-    def get_links_from_db():
 
-        mydb = mysql.connector.connect(
-        host="DESKTOP-NOE172B", #DESKTOP-NOE172B
-        user="M3H\rob.hill", #M3H\rob.hill
-        passwd="",
-        database="Projects"
-        )
+    # def get_links_from_db():
 
-        mycursor = mydb.cursor()
+    #     mydb = mysql.connector.connect(
+    #     host="DESKTOP-NOE172B", #DESKTOP-NOE172B
+    #     user="M3H\rob.hill", #M3H\rob.hill
+    #     passwd="",
+    #     database="Projects"
+    #     )
 
-        sql = "SELECT link FROM product_links"
-        mycursor.execute(sql)
+    #     mycursor = mydb.cursor()
 
-        prod_links = mycursor.fetchall()
+    #     sql = "SELECT link FROM product_links"
+    #     mycursor.execute(sql)
 
-        print("Total number of rows in table: ", mycursor.rowcount)
+    #     prod_links = mycursor.fetchall()
 
-        return prod_links
+    #     print("Total number of rows in table: ", mycursor.rowcount)
+
+    #     return prod_links
 
 
     def process_page(link):
@@ -99,7 +106,7 @@ class page_scraper:
                 current_item.item_link = link
 
                 #returns all text from the breadcrumb bar
-                category_uncleaned = (soup.find('ul', class_='crumbs___3NtHD').get_text(","))
+                category_uncleaned = (soup.find('ul', class_='crumbs___wXnIg').get_text(","))
                 #split the texts with a comma and split them into a list to make them accessable individually
                 category_list = category_uncleaned.split(",")
                 print(category_list)
@@ -125,62 +132,84 @@ class page_scraper:
                 table_values = str(whole_table.find_all('tbody'))
                 reduced_values = table_values.split("<tr>")
 
-
+                current_item.energy_kj = 0
+                current_item.energy_cal= 0
+                current_item.fat_total = 0
+                current_item.fat_saturated = 0
+                current_item.carb = 0
+                current_item.sugar = 0
+                current_item.fibre = 0
+                current_item.protein = 0
+                current_item.salt = 0
             
 
                 for x in range(1, len(reduced_values) - 1):
                     
-                    ex = (reduced_values[x].split(">"))
+                    try:
+                        ex = (reduced_values[x].split(">"))
+                        
+                        #table_values_clean = []
+                        title = ex[1].split("<")[0]
+
+                        #use this to access 100g value
+                        #first_val = (ex[3].split("<")[0].replace("g", ""))
+
+                        second_val = ex[5].split("<")[0].replace("g", "").replace(" ", "").replace("&lt;", "")
+                        print(title, second_val)
+
+                        #add to appropriate object variable
+                        energy_second = False
+
                     
-                    #table_values_clean = []
-                    title = ex[1].split("<")[0]
 
-                    #use this to access 100g value
-                    #first_val = (ex[3].split("<")[0].replace("g", ""))
+                        if title == "Energy" and energy_second == False:
+                            print("got it", int(re.sub("[^0-9]", "", second_val)))
+                            current_item.energy_kj = int(re.sub("[^0-9]", "", second_val))
+                            energy_second = True
+        
+                        if title == "Energy" and energy_second == True:
+                            print("got it", int(re.sub("[^0-9]", "", second_val)))
+                            current_item.energy_cal= int(re.sub("[^0-9]", "", second_val))
 
-                    second_val = ex[5].split("<")[0].replace("g", "").replace(" ", "").replace("&lt;", "")
-                    print(title, second_val)
+                        if title == "Fat":
+                            print("got it", second_val)
+                            current_item.fat_total = float(second_val.replace(",", "."))
+                        
+                        if title == "Of which Saturates":
+                            print("got it", second_val)
+                            current_item.fat_saturated = float(second_val.replace(",", "."))
 
-                    #add to appropriate object variable
-                    energy_second = False
+                        if title == "Carbohydrate":
+                            print("got it", second_val)
+                            current_item.carb = float(second_val.replace(",", "."))
 
-                    if title == "Energy" and energy_second == False:
-                        print("got it", int(re.sub("[^0-9]", "", second_val)))
-                        current_item.energy_kj = int(re.sub("[^0-9]", "", second_val))
-                        energy_second = True
+                        if title == "Of which Sugars":
+                            print("got it", second_val)
+                            current_item.sugar = float(second_val.replace(",", "."))
 
-                    if title == "Energy" and energy_second == True:
-                        print("got it", int(re.sub("[^0-9]", "", second_val)))
-                        current_item.energy_cal= int(re.sub("[^0-9]", "", second_val))
+                        if title == "Fibre":
+                            print("got it", second_val)
+                            if second_val == "":
+                                current_item.fibre = 0
+                            else:
+                                current_item.fibre = float(second_val.replace(",", "."))
 
-                    if title == "Fat":
-                        print("got it", second_val)
-                        current_item.fat_total = float(second_val)
-                    
-                    if title == "Of which Saturates":
-                        print("got it", second_val)
-                        current_item.fat_saturated = float(second_val)
+                        if title == "Protein":
+                            print("got it", second_val)
+                            if second_val == "":
+                                current_item.protein = 0
+                            else:
+                                current_item.protein = float(second_val.replace(",", "."))
 
-                    if title == "Carbohydrate":
-                        print("got it", second_val)
-                        current_item.carb = float(second_val)
-
-                    if title == "Of which Sugars":
-                        print("got it", second_val)
-                        current_item.sugar = float(second_val)
-
-                    if title == "Fibre":
-                        print("got it", second_val)
-                        current_item.fibre = float(second_val)
-
-                    if title == "Protein":
-                        print("got it", second_val)
-                        current_item.protein = float(second_val)
-
-                    if title == "Salt":
-                        print("got it", second_val)
-                        current_item.salt = float(second_val)
-
+                        if title == "Salt":
+                            print("got it", second_val)
+                            if second_val == "":
+                                current_item.salt = 0
+                            else:
+                                current_item.salt = float(second_val.replace(",", "."))
+                        
+                    except:
+                        print("This one didn't work")
             
         if ret_object == True:    
             return current_item
@@ -191,37 +220,70 @@ class page_scraper:
 
     def scrape_pages(self, prod_links):
 
-        mydb = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="Supergreen28!",
-        database="proj_schema")
+        # mydb = mysql.connector.connect(
+        # host="localhost",
+        # user="root",
+        # passwd="Supergreen28!",
+        # database="proj_schema")
 
-        mycursor = mydb.cursor()
+        # mycursor = mydb.cursor()
 
         for link in prod_links:
             
-            cur_item = self.process_page(link[0])
+            cur_item = self.process_page(link)
 
             if type(cur_item) != int:
-                self.upload_to_db(cur_item, mydb, mycursor)
+               #self.upload_to_db(cur_item, mydb, mycursor)
+               self.upload_to_db(cur_item)
+               print(cur_item)
 
 
-    def upload_to_db(cur_object, db, cursor):
+    #def upload_to_db(cur_object, db, cursor):
+    def upload_to_db(cur_object):
 
         print("SSSSTTTAARRTTIINNGG")
         # for attr, value in cur_object.__dict__.items():
         #     if not attr.startswith('__'):
         #         print(attr)
 
-        print(cur_object.category_broad)
-        sql = "INSERT INTO product_info (title, category_broad, category_specific, item_link, serving_description, energy_kj, energy_cal, fat_total, fat_saturated, carb, sugar, fibre, protein, salt, meat_or_veg) VALUES (" + "\"" + str(cur_object.title) + "\"" + ", " + "\"" + str(cur_object.category_broad) + "\"" + ", " + "\"" + str(cur_object.category_specific) + "\"" + ", " + "\"" + str(cur_object.item_link) + "\"" + ", " + "\"" + str(cur_object.serving_description) + "\"" + ", " + "\"" + str(cur_object.energy_kj)  + "\"" + ", " + "\"" + str(cur_object.energy_cal) + "\"" + ", " + "\"" + str(cur_object.fat_total) + "\"" + ", " + "\"" + str(cur_object.fat_saturated) + "\"" + ", " + "\"" + str(cur_object.carb)  + "\"" + ", " + "\"" + str(cur_object.sugar)  + "\"" + ", " + "\"" + str(cur_object.fibre) + "\"" + ", " + "\"" + str(cur_object.protein)  + "\"" + ", " + "\"" + str(cur_object.salt) + "\"" + ", " + "\"" + str(cur_object.meat_or_veg) + "\"" + ")"
-        
-        print(sql)
-        
-        cursor.execute(sql,)
 
-        db.commit()
+        #SQL version
+
+        # print(cur_object.category_broad)
+        # sql = "INSERT INTO product_info (title, category_broad, category_specific, item_link, serving_description, energy_kj, energy_cal, fat_total, fat_saturated, carb, sugar, fibre, protein, salt, meat_or_veg) VALUES (" + "\"" + str(cur_object.title) + "\"" + ", " + "\"" + str(cur_object.category_broad) + "\"" + ", " + "\"" + str(cur_object.category_specific) + "\"" + ", " + "\"" + str(cur_object.item_link) + "\"" + ", " + "\"" + str(cur_object.serving_description) + "\"" + ", " + "\"" + str(cur_object.energy_kj)  + "\"" + ", " + "\"" + str(cur_object.energy_cal) + "\"" + ", " + "\"" + str(cur_object.fat_total) + "\"" + ", " + "\"" + str(cur_object.fat_saturated) + "\"" + ", " + "\"" + str(cur_object.carb)  + "\"" + ", " + "\"" + str(cur_object.sugar)  + "\"" + ", " + "\"" + str(cur_object.fibre) + "\"" + ", " + "\"" + str(cur_object.protein)  + "\"" + ", " + "\"" + str(cur_object.salt) + "\"" + ", " + "\"" + str(cur_object.meat_or_veg) + "\"" + ")"
+        
+        # print(sql)
+        
+        # cursor.execute(sql,)
+
+        # db.commit()
+
+        #MongoDB version
+
+        client = pymongo.MongoClient("mongodb+srv://rob:green28@cluster0.gmiu7.mongodb.net/?retryWrites=true&w=majority", server_api=ServerApi('1'))
+        db = client["NutritionApp"]
+        products_table= db["products"]
+        mydict = { 
+        "title":str(cur_object.title),
+        "category_broad":str(cur_object.category_broad), 
+        "category_specific": str(cur_object.category_specific), 
+        "item_link": str(cur_object.item_link), 
+        "serving_description": str(cur_object.serving_description), 
+        "energy_kj": str(cur_object.energy_kj), 
+        "energy_cal": str(cur_object.energy_cal), 
+        "fat_total": str(cur_object.fat_total), 
+        "fat_saturated": str(cur_object.fat_saturated), 
+        "carb": str(cur_object.carb), 
+        "sugar": str(cur_object.sugar), 
+        "fibre": str(cur_object.fibre), 
+        "protein": str(cur_object.protein), 
+        "salt": str(cur_object.salt), 
+        "meat_or_veg": str(cur_object.meat_or_veg)
+         }
+
+        x = products_table.insert_one(mydict)
+
+        print(db)
 
         print("it worked") 
 
@@ -229,7 +291,8 @@ class page_scraper:
 
 if __name__ == "__main__":
 
-    links = page_scraper.get_links_from_db()
+    #links = page_scraper.get_links_from_db()
+    links = newScrape.get_links()
     scraper_instance = page_scraper
     page_scraper.scrape_pages(scraper_instance, links)
 
