@@ -49,8 +49,6 @@ def get_links():
     startNo += sizeNo
   #cookie will need to be refreshed -- 
 
-
-
     response = requests.request("POST", url, headers=headers, data=payload)
 
     data = json.loads(response.text)
